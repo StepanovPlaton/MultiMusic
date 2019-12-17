@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -77,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 Socket server = ServerSocketObject.accept();
                 new Thread(new Server()).start();
+                server.setSoTimeout(10000);
 
                 Log.d("CREATION", "NEW CLIENT");
 
@@ -92,13 +94,15 @@ public class MainActivity extends AppCompatActivity {
 
                 byte [] buffer = new byte[(int)file.length()];
 
-                file_input.read(buffer,0, buffer.length); Log.d("CREATION", "READ FILE");
-                file_send.write(buffer,0, buffer.length); Log.d("CREATION", "SEND FILE");
+                file_input.read(buffer, 0, buffer.length); Log.d("CREATION", "READ FILE");
+                Log.d("CREATION", new String(buffer, "UTF-8"));
+                //SystemClock.sleep(1000);
+                file_send.write(buffer, 0, buffer.length); Log.d("CREATION", "SEND FILE");
+                //SystemClock.sleep(1000);
                 file_send.flush();
 
-                MediaPlayer mpintro = new MediaPlayer();
-                mpintro.setDataSource(getApplicationContext(), Uri.parse(file.getAbsolutePath()));
-                mpintro.start();
+                MediaPlayer mPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(file.getAbsolutePath()));
+                mPlayer.start();
 
             } catch (IOException e) { e.printStackTrace(); }
         }
@@ -117,30 +121,28 @@ public class MainActivity extends AppCompatActivity {
                 PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(client.getOutputStream())), true);
                 BufferedInputStream file_in = new BufferedInputStream(client.getInputStream());
                 Log.d("CREATION", "INIT OK");
-                int len_file = Integer.parseInt(input.readLine());Log.d("CREATION", "LEN OK");
+                int len_file = Integer.parseInt(input.readLine());
+                Log.d("CREATION", "LEN OK");
 
-                final byte [] buffer = new byte[len_file];
+                final byte[] buffer = new byte[len_file];
 
-                file_in.read(buffer, 0, len_file); Log.d("CREATION", "TOOK FILE");
+                file_in.read(buffer, 0, len_file);
+                Log.d("CREATION", "TOOK FILE");
 
                 Log.d("CREATION", new String(buffer, "UTF-8"));
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        try {
-                            File mp3 = new File(getExternalStorageDirectory().getAbsolutePath().toString() + "/2.txt");
-                            mp3.setReadable(true, false);
-                            mp3.setExecutable(true, false);
-                            mp3.setWritable(true, false);
-                            if (!mp3.exists()) { mp3.createNewFile(); }
+                File mp3 = new File(getExternalStorageDirectory().getAbsolutePath().toString() + "/2.mp3");
+                mp3.deleteOnExit();
+                if (!mp3.exists()) { mp3.createNewFile(); }
+                BufferedOutputStream file_out = new BufferedOutputStream(new FileOutputStream(mp3));
+                file_out.write(buffer);
+                file_out.flush(); file_out.close();
 
-                            FileWriter tmp = new FileWriter(mp3);
-                            tmp.write(new String(buffer, "UTF-8"));
-                            tmp.flush();
-                            tmp.close();
-                        } catch (IOException e) { e.printStackTrace(); }
-                    }
-                });
-
+                MediaPlayer mPlayer = new MediaPlayer();
+                mPlayer.setDataSource(mp3.getAbsolutePath());
+                mPlayer.prepare();
+                //SystemClock.sleep(3000);
+                //mPlayer.setLooping(true);
+                mPlayer.start();
 
             } catch (IOException e) { e.printStackTrace(); }
         }
