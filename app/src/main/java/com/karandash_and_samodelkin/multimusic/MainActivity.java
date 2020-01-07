@@ -51,12 +51,14 @@ import java.nio.channels.FileChannel;
 
 import static android.os.Environment.getExternalStorageDirectory;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity<pablic> extends AppCompatActivity {
     ServerSocket ServerSocketObject;
     public ProgressBar progressBar;
 
     Uri chosenAudioUri;
 
+    boolean main_server = true;
+    String filePath = "";
     public int width = 0;
     public int height = 0;
 
@@ -107,21 +109,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    public void Playing(final int progress, String title, String artist, final int minute, final int seconds) {
-        Log.d("CREATION", "PLAY - "+String.valueOf(progress));
-        runOnUiThread(new Runnable() {
-            public void run() {
-                TextView textView = findViewById(R.id.durationTextView);
-                ProgressBar progressBar = findViewById(R.id.playProgressBar);
-                if(progress == -1) { textView.setText(""); progressBar.setVisibility(ProgressBar.INVISIBLE); return; }
-                Log.d("CREATION", "PLAY - "+String.valueOf(progress));
-                textView.setText(String.valueOf(minute) + ":" + String.valueOf(seconds));
-                progressBar.setVisibility(ProgressBar.VISIBLE);
-                progressBar.setProgress(progress);
-            }
-        });
-    }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -133,24 +120,29 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public String ChoosePlayFile() {
+        Intent photoPickerIntent = new Intent(Intent.ACTION_GET_CONTENT);
+        photoPickerIntent.setDataAndType(Uri.parse(Environment.getExternalStorageDirectory().getPath()), "audio/*");
+        startActivityForResult(Intent.createChooser(photoPickerIntent, "Open folder"), 1);
+
+        while(chosenAudioUri == null) { }
+        Cursor cursor = getContentResolver().query(chosenAudioUri, new String[] {android.provider.MediaStore.Audio.AudioColumns.DATA }, null, null, null);
+        cursor.moveToFirst();
+        final String filePath = cursor.getString(0);
+
+        Log.d("CREATION", "file path - " + filePath);
+
+        return filePath;
+    }
+
     public class Server implements Runnable {
         @RequiresApi(api = Build.VERSION_CODES.N)
         @Override
         public void run() {
             try {
-                Intent photoPickerIntent = new Intent(Intent.ACTION_GET_CONTENT);
-                photoPickerIntent.setDataAndType(Uri.parse(Environment.getExternalStorageDirectory().getPath()), "audio/*");
-                startActivityForResult(Intent.createChooser(photoPickerIntent, "Open folder"), 1);
-
-                while(chosenAudioUri == null) { }
-                Cursor cursor = getContentResolver().query(chosenAudioUri, new String[] {android.provider.MediaStore.Audio.AudioColumns.DATA }, null, null, null);
-                cursor.moveToFirst();
-                final String filePath = cursor.getString(0);
-
-                Log.d("CREATION", "file path - " + chosenAudioUri.getPath() + ":" + filePath);
-
+                if(main_server) { filePath = ChoosePlayFile(); main_server = false; }
                 Socket server = ServerSocketObject.accept();
-                //new Thread(new Server()).start();
+                new Thread(new Server()).start();
                 server.setSoTimeout(10000000);
 
                 Log.d("CREATION", "NEW CLIENT");
@@ -184,18 +176,13 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 while (true) { if(input.readLine() != null) { break; } }
+
+
+
                 out.println("ok");
 
                 MediaPlayer mPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(file.getAbsolutePath()));
                 mPlayer.start();
-
-                /*int minutes = (Integer.parseInt(duration) / 1000) / 60;
-                int seconds = (Integer.parseInt(duration) / 1000) % 60;
-
-                for(int u=0; u < (Integer.parseInt(duration)/(int)1000); u++) {
-                    Playing(u/(Integer.parseInt(duration)/(int)1000), title, artist, minutes, seconds);
-                    SystemClock.sleep(1000);
-                }*/
 
             } catch (IOException e) { e.printStackTrace(); }
         }
@@ -242,15 +229,6 @@ public class MainActivity extends AppCompatActivity {
                 mPlayer.start();
 
                 SetProgressBar(-1);
-                /*
-                int minutes = (Integer.parseInt(duration) / 1000) / 60;
-                int seconds = (Integer.parseInt(duration) / 1000) % 60;
-
-                for(int u=0; u < (Integer.parseInt(duration)/(int)1000); u++) {
-                    Playing(u/(Integer.parseInt(duration)/(int)1000), title, artist, minutes, seconds);
-                    SystemClock.sleep(1000);
-                }*/
-
 
             } catch (IOException e) { e.printStackTrace(); }
         }
