@@ -62,6 +62,10 @@ public class MainActivity<pablic> extends AppCompatActivity {
     public int width = 0;
     public int height = 0;
 
+    Boolean play = false;
+
+    Boolean all_ok_playing = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -94,6 +98,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
     @RequiresApi(api = Build.VERSION_CODES.N)
     public void OnClick_Client (View view) { delete_start_button(); new Thread(new Client()).start(); Log.d("CREATION", "CLIENT START");}
 
+    public void OnClick_Start(View view) { play = true; }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     public void SetProgressBar(final int progress) {
@@ -177,7 +182,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
 
                 while (true) { if(input.readLine() != null) { break; } }
 
-
+                while (play == false) {}
 
                 out.println("ok");
 
