@@ -1,7 +1,11 @@
 package com.karandash_and_samodelkin.multimusic;
 
 import android.Manifest;
+import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Point;
 import android.media.AudioManager;
+import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
@@ -9,13 +13,18 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.Display;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
@@ -34,15 +43,22 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.RandomAccessFile;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.FileChannel;
 
 import static android.os.Environment.getExternalStorageDirectory;
 
 public class MainActivity extends AppCompatActivity {
-
     ServerSocket ServerSocketObject;
+    public ProgressBar progressBar;
+
+    Uri chosenAudioUri;
+
+    public int width = 0;
+    public int height = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +77,9 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { requestPermissions(permissions, 1); }
 
         try { ServerSocketObject = new ServerSocket(2048, 10); } catch (IOException e) { e.printStackTrace(); } // Init объекта сокета
+
+        Display display = getWindowManager().getDefaultDisplay(); Point size = new Point(); display.getSize(size);
+        width = size.x; height = size.y;
     }
 
     public void delete_start_button() {
@@ -68,48 +87,122 @@ public class MainActivity extends AppCompatActivity {
         Button client_button = findViewById(R.id.Client); ((ViewGroup) client_button.getParent()).removeView(client_button);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     public void OnClick_Server (View view) { delete_start_button(); new Thread(new Server()).start(); Log.d("CREATION", "SERVER START"); }
+    @RequiresApi(api = Build.VERSION_CODES.N)
     public void OnClick_Client (View view) { delete_start_button(); new Thread(new Client()).start(); Log.d("CREATION", "CLIENT START");}
 
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void SetProgressBar(final int progress) {
+        MainActivity.this.runOnUiThread(new Runnable() {
+            public void run() {
+                TextView textView = findViewById(R.id.loadingTextView);
+                ProgressBar progressBar = findViewById(R.id.loadingProgressBar);
+                if(progress == -1) { textView.setText(""); progressBar.setVisibility(ProgressBar.INVISIBLE); return; }
+
+                textView.setText("Загрузка "+String.valueOf(progress)+"%");
+                progressBar.setVisibility(ProgressBar.VISIBLE);
+                progressBar.setProgress(progress);
+            }
+        });
+    }
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void Playing(final int progress, String title, String artist, final int minute, final int seconds) {
+        Log.d("CREATION", "PLAY - "+String.valueOf(progress));
+        runOnUiThread(new Runnable() {
+            public void run() {
+                TextView textView = findViewById(R.id.durationTextView);
+                ProgressBar progressBar = findViewById(R.id.playProgressBar);
+                if(progress == -1) { textView.setText(""); progressBar.setVisibility(ProgressBar.INVISIBLE); return; }
+                Log.d("CREATION", "PLAY - "+String.valueOf(progress));
+                textView.setText(String.valueOf(minute) + ":" + String.valueOf(seconds));
+                progressBar.setVisibility(ProgressBar.VISIBLE);
+                progressBar.setProgress(progress);
+            }
+        });
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch(requestCode) {
+            case 1: {
+                if (resultCode == RESULT_OK) { chosenAudioUri = data.getData(); }
+                break;
+            }
+        }
+    }
+
     public class Server implements Runnable {
+        @RequiresApi(api = Build.VERSION_CODES.N)
         @Override
         public void run() {
             try {
+                Intent photoPickerIntent = new Intent(Intent.ACTION_GET_CONTENT);
+                photoPickerIntent.setDataAndType(Uri.parse(Environment.getExternalStorageDirectory().getPath()), "audio/*");
+                startActivityForResult(Intent.createChooser(photoPickerIntent, "Open folder"), 1);
+
+                while(chosenAudioUri == null) { }
+                Cursor cursor = getContentResolver().query(chosenAudioUri, new String[] {android.provider.MediaStore.Audio.AudioColumns.DATA }, null, null, null);
+                cursor.moveToFirst();
+                final String filePath = cursor.getString(0);
+
+                Log.d("CREATION", "file path - " + chosenAudioUri.getPath() + ":" + filePath);
+
                 Socket server = ServerSocketObject.accept();
-                new Thread(new Server()).start();
-                server.setSoTimeout(10000);
+                //new Thread(new Server()).start();
+                server.setSoTimeout(10000000);
 
                 Log.d("CREATION", "NEW CLIENT");
 
-                File file = new File("/storage/emulated/0/1.mp3");
-                Log.d("CREATION", "LOAD FILE - " + String.valueOf(file.length()));
-
+                File file = new File(filePath);
+                //Log.d("CREATION", "LOAD FILE - " + String.valueOf(file.length()));
                 BufferedReader input = new BufferedReader(new InputStreamReader(server.getInputStream()));
                 PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(server.getOutputStream())), true);
                 BufferedOutputStream file_send = new BufferedOutputStream(server.getOutputStream());
                 BufferedInputStream file_input = new BufferedInputStream(new FileInputStream(file));
 
-                out.println(file.length());
+                MediaMetadataRetriever metaRetriever = new MediaMetadataRetriever();
+                metaRetriever.setDataSource(file.getAbsolutePath());
+                String artist =  metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
+                String title = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
+                String duration = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                Log.d("CREATION", title + ":" + artist + ":" + duration);
 
-                byte [] buffer = new byte[(int)file.length()];
 
-                file_input.read(buffer, 0, buffer.length); Log.d("CREATION", "READ FILE");
-                Log.d("CREATION", new String(buffer, "UTF-8"));
-                //SystemClock.sleep(1000);
-                file_send.write(buffer, 0, buffer.length); Log.d("CREATION", "SEND FILE");
-                //SystemClock.sleep(1000);
-                file_send.flush();
+                out.println(String.valueOf(file.length()));
+
+                int i = 0; int len;
+                byte[] buffer = new byte[1024];
+                Integer fileSize = (int) file.length();
+                while(i<fileSize){
+                    len = file_input.read(buffer);
+                    i+=len;
+                    //Log.d("CREATION", new String(buffer, "UTF-8"));
+                    file_send.write(buffer, 0, len);
+                    file_send.flush();
+                }
+
+                while (true) { if(input.readLine() != null) { break; } }
+                out.println("ok");
 
                 MediaPlayer mPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(file.getAbsolutePath()));
                 mPlayer.start();
+
+                /*int minutes = (Integer.parseInt(duration) / 1000) / 60;
+                int seconds = (Integer.parseInt(duration) / 1000) % 60;
+
+                for(int u=0; u < (Integer.parseInt(duration)/(int)1000); u++) {
+                    Playing(u/(Integer.parseInt(duration)/(int)1000), title, artist, minutes, seconds);
+                    SystemClock.sleep(1000);
+                }*/
 
             } catch (IOException e) { e.printStackTrace(); }
         }
     }
 
     public class Client implements Runnable {
-
+        @RequiresApi(api = Build.VERSION_CODES.N)
         @Override
         public void run() {
             try {
@@ -120,29 +213,44 @@ public class MainActivity extends AppCompatActivity {
                 BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(client.getOutputStream())), true);
                 BufferedInputStream file_in = new BufferedInputStream(client.getInputStream());
-                Log.d("CREATION", "INIT OK");
-                int len_file = Integer.parseInt(input.readLine());
-                Log.d("CREATION", "LEN OK");
-
-                final byte[] buffer = new byte[len_file];
-
-                file_in.read(buffer, 0, len_file);
-                Log.d("CREATION", "TOOK FILE");
-
-                Log.d("CREATION", new String(buffer, "UTF-8"));
                 File mp3 = new File(getExternalStorageDirectory().getAbsolutePath().toString() + "/2.mp3");
-                mp3.deleteOnExit();
                 if (!mp3.exists()) { mp3.createNewFile(); }
                 BufferedOutputStream file_out = new BufferedOutputStream(new FileOutputStream(mp3));
-                file_out.write(buffer);
-                file_out.flush(); file_out.close();
+
+                int fileSize = Integer.parseInt(input.readLine());
+                byte[] buffer = new byte[1024];
+
+                int i = 0; int len = 0;
+                while(i < fileSize) {
+                    len = file_in.read(buffer, 0, (fileSize - i < buffer.length) ? fileSize - i : buffer.length);
+                    i += len;
+                    file_out.write(buffer, 0, len);
+                    file_out.flush();
+                    Log.d("CREATION", String.valueOf(((float)i/(float)fileSize)*100));
+                    SetProgressBar((int) (((float)i/(float)fileSize)*100));
+
+                }
+                Log.d("CREATION", "Ok RECV");
+
+
+                out.println("ok");
+                while (true) { if(input.readLine() != null) { break; } }
 
                 MediaPlayer mPlayer = new MediaPlayer();
                 mPlayer.setDataSource(mp3.getAbsolutePath());
                 mPlayer.prepare();
-                //SystemClock.sleep(3000);
-                //mPlayer.setLooping(true);
                 mPlayer.start();
+
+                SetProgressBar(-1);
+                /*
+                int minutes = (Integer.parseInt(duration) / 1000) / 60;
+                int seconds = (Integer.parseInt(duration) / 1000) % 60;
+
+                for(int u=0; u < (Integer.parseInt(duration)/(int)1000); u++) {
+                    Playing(u/(Integer.parseInt(duration)/(int)1000), title, artist, minutes, seconds);
+                    SystemClock.sleep(1000);
+                }*/
+
 
             } catch (IOException e) { e.printStackTrace(); }
         }
