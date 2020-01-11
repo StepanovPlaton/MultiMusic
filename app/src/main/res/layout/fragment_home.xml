@@ -47,10 +47,11 @@
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
-        android:layout_marginStart="101dp"
-        android:layout_marginTop="193dp"
+        android:layout_marginStart="100dp"
+        android:layout_marginTop="49dp"
         android:onClick="OnClick_Start"
-        android:text="Начать вечеринку" />
+        android:text="Начать вечеринку"
+        android:visibility="invisible" />
 
     <ProgressBar
         android:id="@+id/loadingProgressBar"
@@ -85,6 +86,56 @@
         android:layout_marginStart="136dp"
         android:layout_marginTop="375dp"
         android:text="" />
+
+    <EditText
+        android:id="@+id/IP"
+        android:layout_width="250dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="51dp"
+        android:layout_marginTop="88dp"
+        android:ems="10"
+        android:hint="Введите IP-адрес"
+        android:inputType="textPersonName"
+        android:text="192.168.32.211"
+        android:visibility="invisible" />
+
+    <EditText
+        android:id="@+id/NAME"
+        android:layout_width="250dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="53dp"
+        android:layout_marginTop="140dp"
+        android:ems="10"
+        android:hint="Введите выш ник"
+        android:inputType="textPersonName"
+        android:text=""
+        android:visibility="invisible" />
+
+    <Button
+        android:id="@+id/Connect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="70dp"
+        android:layout_marginTop="214dp"
+        android:onClick="OnClick_Connect"
+        android:text="Поключиться к вечеринке"
+        android:visibility="invisible" />
+
+    <ListView
+        android:id="@+id/USERS"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="195dp"
+        android:visibility="invisible" />
 
 
 </RelativeLayout>
