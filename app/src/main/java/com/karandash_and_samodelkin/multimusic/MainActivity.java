@@ -174,7 +174,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
             public void run() {
                 WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
                 String ip = Formatter.formatIpAddress(wm.getConnectionInfo().getIpAddress());
-                TextView textView = findViewById(R.id.loadingTextView);
+                TextView textView = findViewById(R.id.ShowIpServer);
                 if(status == 1) { textView.setText("Сервер ожидает подключения\nВаш IP Адресс - "+ip); }
                 if(status == 0) { textView.setText(""); }
             }
