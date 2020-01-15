@@ -50,6 +50,17 @@
         android:text="Начать вечеринку"
         android:visibility="invisible" />
 
+    <Button
+        android:id="@+id/Next"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="40dp"
+        android:layout_centerInParent="true"
+        android:onClick="OnClick_Next"
+        android:text="Cлудующий трек"
+        android:visibility="invisible" />
+
     <ProgressBar
         android:id="@+id/loadingProgressBar"
         style="?android:attr/progressBarStyleHorizontal"

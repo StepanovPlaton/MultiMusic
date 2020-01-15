@@ -54,14 +54,18 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.channels.FileChannel;
+import java.util.Random;
 
 import static android.os.Environment.getExternalStorageDirectory;
 
 public class MainActivity<pablic> extends AppCompatActivity {
     ServerSocket ServerSocketObject;
     public ProgressBar progressBar;
+    Random random = new Random();
+    MediaPlayer mPlayer = new MediaPlayer();
 
-    Uri chosenAudioUri;
+    Uri[] chosenAudioUri  = new Uri[10000];
+    int chosenAudioUri_ind = 0;
 
     boolean main_server = true;
     String filePath = "";
@@ -69,6 +73,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
     public int height = 0;
 
     Boolean play = false;
+    Boolean next = false;
 
     String name = "";
     String ip = "";
@@ -116,6 +121,8 @@ public class MainActivity<pablic> extends AppCompatActivity {
     public void OnClick_Client (View view) { delete_start_button(); new Thread(new Client()).start(); Log.d("CREATION", "CLIENT START"); }
 
     public void OnClick_Start(View view) { play = true; }
+    public void OnClick_Next(View view) { next = true; }
+
     public void OnClick_Connect(View view) {
         Button button_conn = (Button) findViewById(R.id.Connect);
         final EditText ip_input = (EditText) findViewById(R.id.IP);
@@ -143,7 +150,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         switch(requestCode) {
             case 1: {
-                if (resultCode == RESULT_OK) { chosenAudioUri = data.getData(); }
+                if (resultCode == RESULT_OK) { Log.d("CREATION", "NULL OK"); chosenAudioUri[chosenAudioUri_ind] = data.getData(); }
                 break;
             }
         }
@@ -154,16 +161,16 @@ public class MainActivity<pablic> extends AppCompatActivity {
 
     public String ChoosePlayFile() {
         show_TOAST("Выберите файл для воспроизведения");
-
+        
         Intent photoPickerIntent = new Intent(Intent.ACTION_GET_CONTENT);
         photoPickerIntent.setDataAndType(Uri.parse(Environment.getExternalStorageDirectory().getPath()), "audio/*");
         startActivityForResult(Intent.createChooser(photoPickerIntent, "Open folder"), 1);
-
-        while(chosenAudioUri == null) { }
-        Cursor cursor = getContentResolver().query(chosenAudioUri, new String[] {android.provider.MediaStore.Audio.AudioColumns.DATA }, null, null, null);
+        Log.d("CREATION", "NULL WAIT");
+        while(chosenAudioUri[chosenAudioUri_ind] == null) { }
+        Cursor cursor = getContentResolver().query(chosenAudioUri[chosenAudioUri_ind], new String[] {android.provider.MediaStore.Audio.AudioColumns.DATA }, null, null, null);
         cursor.moveToFirst();
         final String filePath = cursor.getString(0);
-
+        //chosenAudioUri_ind++;
         Log.d("CREATION", "file path - " + filePath);
 
         return filePath;
@@ -218,65 +225,102 @@ public class MainActivity<pablic> extends AppCompatActivity {
         });
     }
 
+    public void show_next_button(final int status) {
+        MainActivity.this.runOnUiThread(new Runnable() {
+            public void run() {
+                Button button = findViewById(R.id.Next);
+                if(status == 1) { button.setVisibility(View.VISIBLE); }
+                if(status == 0) { button.setVisibility(View.INVISIBLE); }
+            }
+        });
+    }
+
     public class Server implements Runnable {
         @RequiresApi(api = Build.VERSION_CODES.N)
         @Override
         public void run() {
             try {
-                if(main_server) { filePath = ChoosePlayFile(); main_server = false; }
-
                 show_ip_server(1);
-
+                Boolean I_am_main_server = false;
                 Socket server = ServerSocketObject.accept();
+
+                BufferedReader input = new BufferedReader(new InputStreamReader(server.getInputStream()));
+                PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(server.getOutputStream())), true);
+                BufferedOutputStream file_send = new BufferedOutputStream(server.getOutputStream());
 
                 int my_client = clients_connect;
                 clients_connect+=1;
                 Log.d("CREATION", "NEW CLIENT");
                 new Thread(new Server()).start();
-
                 server.setSoTimeout(10000000);
-                Log.d("CREATION", "NEW CLIENT init");
 
-                File file = new File(filePath);
-                BufferedReader input = new BufferedReader(new InputStreamReader(server.getInputStream()));
-                PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(server.getOutputStream())), true);
-                BufferedOutputStream file_send = new BufferedOutputStream(server.getOutputStream());
-                BufferedInputStream file_input = new BufferedInputStream(new FileInputStream(file));
+                if (main_server) { filePath = ChoosePlayFile(); main_server = false; I_am_main_server = true; Log.d("CREATION", "NEW file"); }
 
-                MediaMetadataRetriever metaRetriever = new MediaMetadataRetriever();
-                metaRetriever.setDataSource(file.getAbsolutePath());
-                String artist =  metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
-                String title = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
-                String duration = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-                Log.d("CREATION", title + ":" + artist + ":" + duration);
+                while(true) {
+                    Log.d("CREATION", "START SERVER PROCESS");
+
+                    Log.d("CREATION", "NEW CLIENT init FILE PATH - "+filePath);
+                    String floderPath = "";
+                    String[] filePath_array = filePath.split("/");
+                    for(int i = 0; i<filePath_array.length-1; i++) { floderPath+=filePath_array[i]+"/"; }
+                    File floder = new File(floderPath);
+                    Log.d("CREATION", "NEW CLIENT init FLODER PATH - "+floderPath);
+                    File[] files = floder.listFiles();
+                    File file;
+                    while(true) {
+                        file = files[random.nextInt(files.length)];
+                        if(file.isFile()) { break; }
+                    }
+
+                    BufferedInputStream file_input = new BufferedInputStream(new FileInputStream(file));
+
+                    MediaMetadataRetriever metaRetriever = new MediaMetadataRetriever();
+                    metaRetriever.setDataSource(file.getAbsolutePath());
+                    String artist = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
+                    String title = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
+                    String duration = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                    Log.d("CREATION", title + ":" + artist + ":" + duration);
 
 
-                out.println(String.valueOf(file.length()));
-                clients_ip[my_client] = input.readLine();
-                show_clients(1);
+                    out.println(String.valueOf(file.length()));
+                    clients_ip[my_client] = input.readLine();
+                    show_clients(1);
 
-                int i = 0; int len;
-                byte[] buffer = new byte[1024];
-                Integer fileSize = (int) file.length();
-                while(i<fileSize){
-                    len = file_input.read(buffer);
-                    i+=len;
-                    file_send.write(buffer, 0, len);
-                    file_send.flush();
-                    Log.d("CREATION", String.valueOf(((float)i/(float)fileSize)*100));
+                    int i = 0;
+                    int len;
+                    byte[] buffer = new byte[1024];
+                    Integer fileSize = (int) file.length();
+                    while (i < fileSize) {
+                        len = file_input.read(buffer);
+                        i += len;
+                        file_send.write(buffer, 0, len);
+                        file_send.flush();
+                        //Log.d("CREATION", String.valueOf(((float) i / (float) fileSize) * 100));
+                    }
+
+                    while (true) { if (input.readLine() != null) { break; } }
+                    StartButtonVisible(1);
+                    while (play == false) { }
+                    show_ip_server(0);
+                    show_clients(0);
+                    StartButtonVisible(0);
+
+                    out.println("ok");
+
+                    mPlayer.reset();
+                    mPlayer.setDataSource(file.getAbsolutePath());
+                    mPlayer.prepare();
+                    mPlayer.start();
+
+                    show_next_button(1);
+                    while (next == false) { if(mPlayer.isPlaying() == false) { break; } }
+                    next = false;
+                    show_next_button(0);
+
+                    out.println("next");
+                    file_input.close();
+                    Log.d("CREATION", "NEXT SERV");
                 }
-
-                while (true) { if(input.readLine() != null) { break; } }
-                StartButtonVisible(1);
-                while (play == false) {}
-                show_ip_server(0);
-                show_clients(0);
-                StartButtonVisible(0);
-
-                out.println("ok");
-
-                MediaPlayer mPlayer = MediaPlayer.create(getApplicationContext(), Uri.parse(file.getAbsolutePath()));
-                mPlayer.start();
 
             } catch (IOException e) { e.printStackTrace(); }
         }
@@ -297,38 +341,49 @@ public class MainActivity<pablic> extends AppCompatActivity {
                 BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(client.getOutputStream())), true);
                 BufferedInputStream file_in = new BufferedInputStream(client.getInputStream());
-                File mp3 = new File(getExternalStorageDirectory().getAbsolutePath().toString() + "/2.mp3");
-                if (!mp3.exists()) { mp3.createNewFile(); }
-                BufferedOutputStream file_out = new BufferedOutputStream(new FileOutputStream(mp3));
+
+
                 Log.d("CREATION", "Ok INIT client");
 
-                int fileSize = Integer.parseInt(input.readLine());
+                while(true) {
+                    File mp3 = new File(getExternalStorageDirectory().getAbsolutePath().toString() + "/2.mp3");
+                    if (!mp3.exists()) { mp3.createNewFile(); }
+                    BufferedOutputStream file_out = new BufferedOutputStream(new FileOutputStream(mp3));
 
-                WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-                String my_ip = Formatter.formatIpAddress(wm.getConnectionInfo().getIpAddress());
-                out.println(name+"("+my_ip+")");
-                byte[] buffer = new byte[1024];
+                    int fileSize = Integer.parseInt(input.readLine()); Log.d("CREATION", "SIZE - "+String.valueOf(fileSize));
 
-                int i = 0; int len = 0;
-                while(i < fileSize) {
-                    len = file_in.read(buffer, 0, (fileSize - i < buffer.length) ? fileSize - i : buffer.length);
-                    i += len;
-                    file_out.write(buffer, 0, len);
-                    file_out.flush();
-                    Log.d("CREATION", String.valueOf(((float)i/(float)fileSize)*100));
-                    SetProgressBar((int) (((float)i/(float)fileSize)*100));
+                    WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+                    String my_ip = Formatter.formatIpAddress(wm.getConnectionInfo().getIpAddress());
+                    out.println(name + "(" + my_ip + ")");
+                    byte[] buffer = new byte[1024];
+
+                    int i = 0;
+                    int len = 0;
+                    while (i < fileSize) {
+                        len = file_in.read(buffer, 0, (fileSize - i < buffer.length) ? fileSize - i : buffer.length);
+                        i += len;
+                        file_out.write(buffer, 0, len);
+                        file_out.flush();
+                        //Log.d("CREATION", String.valueOf(((float) i / (float) fileSize) * 100));
+                        SetProgressBar((int) (((float) i / (float) fileSize) * 100));
+                    }
+                    Log.d("CREATION", "Ok RECV");
+                    out.println("ok");
+
+                    SetProgressBar(-1);
+
+                    while (true) { if (input.readLine() != null) { break; } }
+
+                    mPlayer.reset();
+                    mPlayer.setDataSource(mp3.getAbsolutePath());
+                    mPlayer.prepare();
+                    mPlayer.start();
+                    Log.d("CREATION", "PLAY");
+
+                    while (true) { if (input.readLine() != null) { break; } }
+                    Log.d("CREATION", "NEXT");
+                    mp3.delete();
                 }
-                Log.d("CREATION", "Ok RECV");
-                out.println("ok");
-
-                SetProgressBar(-1);
-
-                while (true) { if(input.readLine() != null) { break; } }
-
-                MediaPlayer mPlayer = new MediaPlayer();
-                mPlayer.setDataSource(mp3.getAbsolutePath());
-                mPlayer.prepare();
-                mPlayer.start();
             } catch (IOException e) { show_TOAST("Ошибка подключения"); e.printStackTrace(); }
         }
     }
