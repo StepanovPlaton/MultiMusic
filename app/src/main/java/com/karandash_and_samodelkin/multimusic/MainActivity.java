@@ -64,7 +64,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
     Random random = new Random();
     MediaPlayer mPlayer = new MediaPlayer();
 
-    Uri[] chosenAudioUri  = new Uri[10000];
+    Uri[] chosenAudioUri  = new Uri[100000];
     int chosenAudioUri_ind = 0;
 
     boolean main_server = true;
@@ -77,6 +77,8 @@ public class MainActivity<pablic> extends AppCompatActivity {
 
     String name = "";
     String ip = "";
+
+    int play_file_ind = -1;
 
     Boolean client_input_system = false;
 
@@ -257,6 +259,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
                 if (main_server) { filePath = ChoosePlayFile(); main_server = false; I_am_main_server = true; Log.d("CREATION", "NEW file"); }
 
                 while(true) {
+                    if(I_am_main_server) { play_file_ind = -1; }
                     Log.d("CREATION", "START SERVER PROCESS");
 
                     Log.d("CREATION", "NEW CLIENT init FILE PATH - "+filePath);
@@ -266,10 +269,11 @@ public class MainActivity<pablic> extends AppCompatActivity {
                     File floder = new File(floderPath);
                     Log.d("CREATION", "NEW CLIENT init FLODER PATH - "+floderPath);
                     File[] files = floder.listFiles();
-                    File file;
+                    File file = null;
                     while(true) {
-                        file = files[random.nextInt(files.length)];
-                        if(file.isFile()) { break; }
+                        if(I_am_main_server) { play_file_ind = random.nextInt(files.length); file = files[play_file_ind]; }
+                        else { if(play_file_ind != -1) { file = files[play_file_ind]; } }
+                        if (file != null) { break; }
                     }
 
                     BufferedInputStream file_input = new BufferedInputStream(new FileInputStream(file));
@@ -314,15 +318,16 @@ public class MainActivity<pablic> extends AppCompatActivity {
 
                     show_next_button(1);
                     while (next == false) { if(mPlayer.isPlaying() == false) { break; } }
-                    next = false;
+
                     show_next_button(0);
 
                     out.println("next");
                     file_input.close();
                     Log.d("CREATION", "NEXT SERV");
+                    next = false;
                 }
 
-            } catch (IOException e) { e.printStackTrace(); }
+            } catch (Exception e) { e.printStackTrace(); }
         }
     }
 
