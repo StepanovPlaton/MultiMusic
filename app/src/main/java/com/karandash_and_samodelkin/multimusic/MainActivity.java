@@ -148,6 +148,20 @@ public class MainActivity<pablic> extends AppCompatActivity {
         });
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void SetPlayBar(final int progress) {
+        MainActivity.this.runOnUiThread(new Runnable() {
+            public void run() {
+                ProgressBar progressBar = findViewById(R.id.PlayProgressBar);
+                if(progress == -1) { progressBar.setVisibility(ProgressBar.INVISIBLE); return; }
+
+                progressBar.setVisibility(ProgressBar.VISIBLE);
+                progressBar.setProgress(progress);
+            }
+        });
+    }
+
+
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         switch(requestCode) {
@@ -185,6 +199,16 @@ public class MainActivity<pablic> extends AppCompatActivity {
                 String ip = Formatter.formatIpAddress(wm.getConnectionInfo().getIpAddress());
                 TextView textView = findViewById(R.id.ShowIpServer);
                 if(status == 1) { textView.setText("Сервер ожидает подключения\nВаш IP Адресс - "+ip); }
+                if(status == 0) { textView.setText(""); }
+            }
+        });
+    }
+
+    public void show_in_ip_server(final int status, final String text) {
+        MainActivity.this.runOnUiThread(new Runnable() {
+            public void run() {
+                TextView textView = findViewById(R.id.ShowIpServer);
+                if(status == 1) { textView.setText(text); }
                 if(status == 0) { textView.setText(""); }
             }
         });
@@ -244,6 +268,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
             try {
                 show_ip_server(1);
                 Boolean I_am_main_server = false;
+                if (main_server) { filePath = ChoosePlayFile(); main_server = false; I_am_main_server = true; Log.d("CREATION", "NEW file"); }
                 Socket server = ServerSocketObject.accept();
 
                 BufferedReader input = new BufferedReader(new InputStreamReader(server.getInputStream()));
@@ -290,6 +315,8 @@ public class MainActivity<pablic> extends AppCompatActivity {
                     clients_ip[my_client] = input.readLine();
                     show_clients(1);
 
+                    Log.d("CREATION", "SENDING");
+
                     int i = 0;
                     int len;
                     byte[] buffer = new byte[1024];
@@ -311,20 +338,29 @@ public class MainActivity<pablic> extends AppCompatActivity {
 
                     out.println("ok");
 
-                    mPlayer.reset();
+                    if(I_am_main_server) {mPlayer.reset();
                     mPlayer.setDataSource(file.getAbsolutePath());
                     mPlayer.prepare();
-                    mPlayer.start();
+                    mPlayer.start();}
+
+                    show_in_ip_server(1, artist+" - "+ title);
+
+                    //SystemClock.sleep(5000);
 
                     show_next_button(1);
-                    while (next == false) { if(mPlayer.isPlaying() == false) { break; } }
 
-                    show_next_button(0);
+                    float tmp = 0;
+
+                    while (next == false) { SetPlayBar((int) (((float)tmp*100f)/Integer.parseInt(duration) * 100f)); SystemClock.sleep(100); if(mPlayer.isPlaying() == false) { break; }  tmp++;}
 
                     out.println("next");
-                    file_input.close();
-                    Log.d("CREATION", "NEXT SERV");
+
+                    show_next_button(0);
                     next = false;
+                    file_input.close();
+
+                    Log.d("CREATION", "NEXT SERV");
+
                 }
 
             } catch (Exception e) { e.printStackTrace(); }
@@ -347,7 +383,7 @@ public class MainActivity<pablic> extends AppCompatActivity {
                 PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(client.getOutputStream())), true);
                 BufferedInputStream file_in = new BufferedInputStream(client.getInputStream());
 
-
+                client.setSoTimeout(10000000);
                 Log.d("CREATION", "Ok INIT client");
 
                 while(true) {
@@ -375,6 +411,13 @@ public class MainActivity<pablic> extends AppCompatActivity {
                     Log.d("CREATION", "Ok RECV");
                     out.println("ok");
 
+                    MediaMetadataRetriever metaRetriever = new MediaMetadataRetriever();
+                    metaRetriever.setDataSource(mp3.getAbsolutePath());
+                    String artist = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
+                    String title = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
+                    String duration = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                    Log.d("CREATION", title + ":" + artist + ":" + duration);
+
                     SetProgressBar(-1);
 
                     while (true) { if (input.readLine() != null) { break; } }
@@ -383,13 +426,18 @@ public class MainActivity<pablic> extends AppCompatActivity {
                     mPlayer.setDataSource(mp3.getAbsolutePath());
                     mPlayer.prepare();
                     mPlayer.start();
+
+                    show_in_ip_server(1, artist+" - "+ title);
+
                     Log.d("CREATION", "PLAY");
 
-                    while (true) { if (input.readLine() != null) { break; } }
+                    float tmp = 0;
+
+                    while (true) { SystemClock.sleep(100); if (input.readLine() != null) { break; } tmp++;Log.d("CREATION", "WAIT");}
                     Log.d("CREATION", "NEXT");
                     mp3.delete();
                 }
-            } catch (IOException e) { show_TOAST("Ошибка подключения"); e.printStackTrace(); }
+            } catch (IOException e) { show_TOAST("Ошибка подключения"); e.printStackTrace(); client_input_system = false;}
         }
     }
 

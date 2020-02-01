@@ -75,6 +75,20 @@
         android:progress="0"
         android:visibility="invisible" />
 
+    <ProgressBar
+        android:id="@+id/PlayProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="407dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginStart="29dp"
+        android:layout_marginTop="179dp"
+        android:layout_marginEnd="28dp"
+        android:progress="0"
+        android:visibility="invisible" />
+
     <TextView
         android:id="@+id/loadingTextView"
         android:layout_width="wrap_content"
